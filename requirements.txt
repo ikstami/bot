@@ -1,0 +1,4 @@
+aiogram
+fuzzywuzzy
+psycopg2
+python-dotenv

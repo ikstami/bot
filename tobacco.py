@@ -37,6 +37,7 @@ cursor.execute("""
 """)
 conn.commit()
 
+
 # Состояния для FSM
 class TobaccoForm(StatesGroup):
     name = State()
@@ -46,6 +47,7 @@ class TobaccoForm(StatesGroup):
     heat_resistance = State()
     comment = State()
 
+
 # Главное меню
 main_menu = ReplyKeyboardMarkup(resize_keyboard=True)
 main_menu.add(KeyboardButton("Добавить табак"))
@@ -53,10 +55,12 @@ main_menu.add(KeyboardButton("Поиск табака"))
 main_menu.add(KeyboardButton("Редактировать табак"))
 main_menu.add(KeyboardButton("Удалить табак"))
 
+
 # Обработчик команды /start
 @dp.message_handler(commands=['start'])
 async def start_cmd(message: types.Message):
     await message.answer("Привет! Этот бот поможет тебе хранить информацию о табаках.", reply_markup=main_menu)
+
 
 # Обработчик кнопки 'Добавить табак'
 @dp.message_handler(lambda message: message.text == "Добавить табак")
@@ -64,17 +68,19 @@ async def add_tobacco(message: types.Message):
     await TobaccoForm.name.set()
     await message.answer("Введите название табака:")
 
+
 # Поиск табака
 @dp.message_handler(lambda message: message.text == "Поиск табака")
 async def search_tobacco(message: types.Message):
     await message.answer("Введите название табака для поиска:")
+
 
 @dp.message_handler(state=None)
 async def process_search(message: types.Message):
     cursor.execute("SELECT name FROM tobaccos")
     tobaccos = [row[0] for row in cursor.fetchall()]
     results = process.extract(message.text, tobaccos, limit=5)
-    
+
     if results:
         keyboard = InlineKeyboardMarkup()
         for result in results:
@@ -87,6 +93,7 @@ async def process_search(message: types.Message):
     else:
         await message.answer("Табак не найден.")
 
+
 @dp.callback_query_handler(lambda c: c.data.startswith("select_"))
 async def show_tobacco(callback_query: types.CallbackQuery):
     tobacco_name = callback_query.data.split("_", 1)[1]
@@ -95,12 +102,13 @@ async def show_tobacco(callback_query: types.CallbackQuery):
     if tobacco:
         response = (f"Название: {tobacco[1]}\nВкус: {tobacco[2]}\nМелассность: {tobacco[3]}\n"
                     f"Время курения: {tobacco[4]}\nЖаростойкость: {tobacco[5]}\nКомментарий: {tobacco[6]}")
-        
+
         keyboard = InlineKeyboardMarkup()
         keyboard.add(InlineKeyboardButton("Редактировать", callback_data=f"edit_{tobacco[1]}"))
         keyboard.add(InlineKeyboardButton("Удалить", callback_data=f"delete_{tobacco[1]}"))
-        
+
         await bot.send_message(callback_query.from_user.id, response, reply_markup=keyboard)
+
 
 @dp.callback_query_handler(lambda c: c.data.startswith("delete_"))
 async def delete_tobacco(callback_query: types.CallbackQuery):
@@ -108,6 +116,7 @@ async def delete_tobacco(callback_query: types.CallbackQuery):
     cursor.execute("DELETE FROM tobaccos WHERE name = %s", (tobacco_name,))
     conn.commit()
     await bot.send_message(callback_query.from_user.id, "Табак удален.")
+
 
 if __name__ == "__main__":
     start_polling(dp, skip_updates=True)
