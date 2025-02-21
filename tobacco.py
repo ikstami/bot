@@ -1,4 +1,7 @@
 import logging
+import os
+import threading
+from flask import Flask
 from aiogram import Bot, Dispatcher, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
@@ -7,7 +10,6 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.utils.executor import start_polling
 from fuzzywuzzy import process
 import psycopg2
-import os
 
 # Базовая настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -37,6 +39,18 @@ cursor.execute("""
 """)
 conn.commit()
 
+# Фейковый веб-сервер для Render
+app = Flask(__name__)
+
+@app.route('/')
+def index():
+    return "Bot is running!"
+
+def run_flask():
+    port = int(os.environ.get("PORT", 5000))  # Render требует переменную PORT
+    app.run(host="0.0.0.0", port=port)
+
+threading.Thread(target=run_flask, daemon=True).start()
 
 # Состояния для FSM
 class TobaccoForm(StatesGroup):
@@ -47,7 +61,6 @@ class TobaccoForm(StatesGroup):
     heat_resistance = State()
     comment = State()
 
-
 # Главное меню
 main_menu = ReplyKeyboardMarkup(resize_keyboard=True)
 main_menu.add(KeyboardButton("Добавить табак"))
@@ -55,12 +68,10 @@ main_menu.add(KeyboardButton("Поиск табака"))
 main_menu.add(KeyboardButton("Редактировать табак"))
 main_menu.add(KeyboardButton("Удалить табак"))
 
-
 # Обработчик команды /start
 @dp.message_handler(commands=['start'])
 async def start_cmd(message: types.Message):
     await message.answer("Привет! Этот бот поможет тебе хранить информацию о табаках.", reply_markup=main_menu)
-
 
 # Обработчик кнопки 'Добавить табак'
 @dp.message_handler(lambda message: message.text == "Добавить табак")
@@ -68,12 +79,10 @@ async def add_tobacco(message: types.Message):
     await TobaccoForm.name.set()
     await message.answer("Введите название табака:")
 
-
 # Поиск табака
 @dp.message_handler(lambda message: message.text == "Поиск табака")
 async def search_tobacco(message: types.Message):
     await message.answer("Введите название табака для поиска:")
-
 
 @dp.message_handler(state=None)
 async def process_search(message: types.Message):
@@ -93,7 +102,6 @@ async def process_search(message: types.Message):
     else:
         await message.answer("Табак не найден.")
 
-
 @dp.callback_query_handler(lambda c: c.data.startswith("select_"))
 async def show_tobacco(callback_query: types.CallbackQuery):
     tobacco_name = callback_query.data.split("_", 1)[1]
@@ -109,14 +117,12 @@ async def show_tobacco(callback_query: types.CallbackQuery):
 
         await bot.send_message(callback_query.from_user.id, response, reply_markup=keyboard)
 
-
 @dp.callback_query_handler(lambda c: c.data.startswith("delete_"))
 async def delete_tobacco(callback_query: types.CallbackQuery):
     tobacco_name = callback_query.data.split("_", 1)[1]
     cursor.execute("DELETE FROM tobaccos WHERE name = %s", (tobacco_name,))
     conn.commit()
     await bot.send_message(callback_query.from_user.id, "Табак удален.")
-
 
 if __name__ == "__main__":
     start_polling(dp, skip_updates=True)

@@ -1,4 +1,4 @@
-aiogram==2.24
+aiogram
 fuzzywuzzy
 psycopg2
 python-dotenv
