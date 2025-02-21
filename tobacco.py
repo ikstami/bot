@@ -1,6 +1,5 @@
 import logging
 import os
-import threading
 from flask import Flask
 from aiogram import Bot, Dispatcher, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
@@ -15,7 +14,7 @@ import psycopg2
 logging.basicConfig(level=logging.INFO)
 
 # Инициализация бота
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")  # Установи токен в переменные окружения
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 bot = Bot(token=TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
@@ -45,12 +44,6 @@ app = Flask(__name__)
 @app.route('/')
 def index():
     return "Bot is running!"
-
-def run_flask():
-    port = int(os.environ.get("PORT", 5000))  # Render требует переменную PORT
-    app.run(host="0.0.0.0", port=port)
-
-threading.Thread(target=run_flask, daemon=True).start()
 
 # Состояния для FSM
 class TobaccoForm(StatesGroup):
@@ -84,7 +77,7 @@ async def add_tobacco(message: types.Message):
 async def search_tobacco(message: types.Message):
     await message.answer("Введите название табака для поиска:")
 
-@dp.message_handler(state=None)
+@dp.message_handler()
 async def process_search(message: types.Message):
     cursor.execute("SELECT name FROM tobaccos")
     tobaccos = [row[0] for row in cursor.fetchall()]
@@ -125,4 +118,6 @@ async def delete_tobacco(callback_query: types.CallbackQuery):
     await bot.send_message(callback_query.from_user.id, "Табак удален.")
 
 if __name__ == "__main__":
+    import threading
+    threading.Thread(target=lambda: app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000))), daemon=True).start()
     start_polling(dp, skip_updates=True)
